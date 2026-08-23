@@ -541,22 +541,22 @@ function PricingCard({ plan }: { plan: PricingPlan }) {
           </ul>
         </div>
 
-        <div className="flex flex-col gap-2 mt-auto z-10">
-          <Link
-            href="/#book-call"
-            className={`w-full py-3 2xl:py-4 px-4 text-[11px] 2xl:text-sm font-bold uppercase tracking-wider transition-all duration-300 active:scale-95 flex items-center justify-center gap-2 ${
-              plan.isPopular
-                ? "bg-gradient-to-r from-purple-600 via-fuchsia-600 to-purple-600 text-white shadow-lg shadow-purple-600/30 hover:shadow-purple-500/50"
-                : "bg-white text-purple-950 hover:bg-gray-100"
-            }`}
-            style={{
-              clipPath: "polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)",
-            }}
-          >
-            <Zap className="w-3.5 h-3.5 2xl:w-4 2xl:h-4 fill-current" />
-            <span>Order Video</span>
-          </Link>
-        </div>
+<div className="flex flex-col gap-2 mt-auto z-10">
+  <Link
+    href={`/checkout?service=saas&plan=${plan.id}`}
+    className={`w-full py-3 2xl:py-4 px-4 text-[11px] 2xl:text-sm font-bold uppercase tracking-wider transition-all duration-300 active:scale-95 flex items-center justify-center gap-2 ${
+      plan.isPopular
+        ? "bg-gradient-to-r from-purple-600 via-fuchsia-600 to-purple-600 text-white shadow-lg shadow-purple-600/30 hover:shadow-purple-500/50"
+        : "bg-white text-purple-950 hover:bg-gray-100"
+    }`}
+    style={{
+      clipPath: "polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)",
+    }}
+  >
+    <Zap className="w-3.5 h-3.5 2xl:w-4 2xl:h-4 fill-current" />
+    <span>Order Video</span>
+  </Link>
+</div>
 
         <div className="absolute bottom-0 left-10 w-12 2xl:w-20 h-[2px] bg-purple-500/50 group-hover:bg-purple-400 group-hover:shadow-[0_0_8px_#a855f7] transition-all" />
       </div>

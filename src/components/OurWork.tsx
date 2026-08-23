@@ -23,6 +23,18 @@ type WorkCardItem = {
   poster: string;
 };
 
+// Cloudinary URL optimizers.
+// f_auto -> serves WebM/AV1 to supporting browsers, q_auto -> smart compression,
+// w_640 -> downscales from the 1276px original (card is only ~44vw wide).
+const optimizeVideo = (url: string) =>
+  url.replace("/upload/", "/upload/f_auto,q_auto,w_640/");
+
+// so_0 grabs the first frame as a still image for the poster.
+const optimizePoster = (url: string) =>
+  url
+    .replace("/upload/", "/upload/so_0,f_auto,q_auto,w_640/")
+    .replace(/\.[^/.]+$/, ".jpg");
+
 export default function OurWorkSection() {
   const sectionRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -31,7 +43,10 @@ export default function OurWorkSection() {
   const [worksList, setWorksList] = useState<WorkCardItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [activeIndex, setActiveIndex] = useState<number>(0);
-  const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
+  // Which card is currently PLAYING. null = nothing plays. Only ever the center card.
+  const [playingKey, setPlayingKey] = useState<string | null>(null);
+  // Whether the whole section is currently on screen. When false, nothing plays.
+  const [sectionInView, setSectionInView] = useState<boolean>(true);
 
   // Cloudinary se videos fetch aur dupe logic
   useEffect(() => {
@@ -41,15 +56,15 @@ export default function OurWorkSection() {
       try {
         const res = await fetch("/api/videos?folder=Digitalixstudio/ourwork");
         if (!res.ok) throw new Error("Failed to fetch videos");
-        
+
         const data: CloudinaryResource[] = await res.json();
 
         if (Array.isArray(data) && data.length > 0 && isMounted) {
           const formatted: WorkCardItem[] = data.map((item) => ({
             id: item.public_id,
             uniqueKey: `${item.public_id}-set1`,
-            video: item.secure_url,
-            poster: item.secure_url.replace(/\.[^/.]+$/, ".jpg"),
+            video: optimizeVideo(item.secure_url),
+            poster: optimizePoster(item.secure_url),
           }));
 
           // 4 videos ko repeat karke 8 items ka smooth loop
@@ -130,20 +145,18 @@ export default function OurWorkSection() {
     };
   }, [loading, worksList.length]);
 
-  // Section se bahar scroll hone par audio/video band karna
+  // Track whether the section is in view. When it leaves, stop any playback.
   useEffect(() => {
     const sectionEl = sectionRef.current;
     if (!sectionEl) return;
 
     const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) {
-            setPlayingVideoId(null);
-          }
-        });
+      ([entry]) => {
+        const inView = entry.isIntersecting;
+        setSectionInView(inView);
+        if (!inView) setPlayingKey(null); // section scrolled away -> pause everything
       },
-      { threshold: 0.2 }
+      { threshold: 0.35 }
     );
 
     observer.observe(sectionEl);
@@ -152,15 +165,16 @@ export default function OurWorkSection() {
 
   const totalCards = worksList.length;
 
+  // Moving the carousel always stops playback — the new center starts paused.
   const nextVideo = () => {
     if (totalCards === 0) return;
-    setPlayingVideoId(null);
+    setPlayingKey(null);
     setActiveIndex((prev) => (prev + 1) % totalCards);
   };
 
   const prevVideo = () => {
     if (totalCards === 0) return;
-    setPlayingVideoId(null);
+    setPlayingKey(null);
     setActiveIndex((prev) => (prev - 1 + totalCards) % totalCards);
   };
 
@@ -175,15 +189,16 @@ export default function OurWorkSection() {
     }
   };
 
-  const handleCardInteraction = (index: number, uniqueKey: string) => {
-    if (index !== activeIndex) {
-      // Agar side card click kiya gaya hai toh pehle usse center banao aur play karo
-      setActiveIndex(index);
-      setPlayingVideoId(uniqueKey);
-    } else {
-      // Agar already center card hai toh play/pause toggle karo
-      setPlayingVideoId((prev) => (prev === uniqueKey ? null : uniqueKey));
-    }
+  // Clicking a SIDE card: bring it to center, but DO NOT auto-play (starts paused).
+  const focusCard = (index: number) => {
+    if (index === activeIndex) return;
+    setPlayingKey(null); // stop whatever was playing before
+    setActiveIndex(index);
+  };
+
+  // Clicking the play/pause button on the CENTER card: toggle playback.
+  const toggleCenterPlayback = (uniqueKey: string) => {
+    setPlayingKey((prev) => (prev === uniqueKey ? null : uniqueKey));
   };
 
   return (
@@ -235,18 +250,23 @@ export default function OurWorkSection() {
             {worksList.map((item, index) => {
               let offset = index - activeIndex;
               const half = totalCards / 2;
-              
+
               if (offset > half) offset -= totalCards;
               if (offset < -half) offset += totalCards;
+
+              const isCenter = offset === 0;
 
               return (
                 <WorkCard
                   key={item.uniqueKey}
                   item={item}
                   offset={offset}
-                  isCenter={offset === 0}
-                  isPlaying={playingVideoId === item.uniqueKey}
-                  onCardClick={() => handleCardInteraction(index, item.uniqueKey)}
+                  isCenter={isCenter}
+                  // A card is allowed to play ONLY if it's the center card,
+                  // it's the one marked playing, AND the section is on screen.
+                  isPlaying={isCenter && playingKey === item.uniqueKey && sectionInView}
+                  onFocus={() => focusCard(index)}
+                  onTogglePlay={() => toggleCenterPlayback(item.uniqueKey)}
                 />
               );
             })}
@@ -276,7 +296,8 @@ type WorkCardProps = {
   offset: number;
   isCenter: boolean;
   isPlaying: boolean;
-  onCardClick: () => void;
+  onFocus: () => void;      // bring a side card to center (no autoplay)
+  onTogglePlay: () => void; // play/pause the center card
 };
 
 const WorkCard = memo(function WorkCard({
@@ -284,33 +305,50 @@ const WorkCard = memo(function WorkCard({
   offset,
   isCenter,
   isPlaying,
-  onCardClick,
+  onFocus,
+  onTogglePlay,
 }: WorkCardProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Playback handling
+  const absOffset = Math.abs(offset);
+
+  // Only the center card and its immediate neighbours mount a real <video>.
+  // Everything else is a static poster image — cheap and identical-looking at
+  // that angle/opacity.
+  const shouldRenderVideo = absOffset <= 1;
+
+  // Single source of truth for playback.
+  // A video plays ONLY when this exact card is the center AND marked playing.
+  // In every other case (not center, not playing, section off-screen) -> pause.
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    if (isPlaying && isCenter) {
+    if (isCenter && isPlaying) {
       video.muted = false;
-      const playPromise = video.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(() => {
+      const p = video.play();
+      if (p !== undefined) {
+        p.catch(() => {
+          // Autoplay-with-sound blocked -> retry muted so it still plays.
           video.muted = true;
           video.play().catch(() => {});
         });
       }
     } else {
       video.pause();
-      if (!isCenter) video.currentTime = 0;
+      // Reset non-center videos to the first frame so they show a clean poster.
+      if (!isCenter) {
+        try {
+          video.currentTime = 0;
+        } catch {
+          /* no-op */
+        }
+      }
     }
-  }, [isPlaying, isCenter]);
+  }, [isCenter, isPlaying]);
 
   // Card Transform Positioning
   const cardStyle = useMemo((): React.CSSProperties => {
-    const absOffset = Math.abs(offset);
     const sign = Math.sign(offset);
 
     if (absOffset === 0) {
@@ -345,15 +383,31 @@ const WorkCard = memo(function WorkCard({
       opacity: 0,
       pointerEvents: "none",
     };
-  }, [offset]);
+  }, [offset, absOffset]);
+
+  // Clicking anywhere on a side card just focuses it (brings to center).
+  const handleCardClick = () => {
+    if (!isCenter) onFocus();
+  };
+
+  // Clicking the play/pause button (center only) toggles playback,
+  // and must not also trigger the card-focus handler.
+  const handleButtonClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isCenter) onTogglePlay();
+  };
 
   return (
     <div
-      onClick={onCardClick}
-      className="group absolute w-[72vw] sm:w-[50vw] md:w-[44vw] max-w-[580px] aspect-[16/9] transition-all duration-500 ease-out cursor-pointer transform-gpu will-change-transform select-none"
+      onClick={handleCardClick}
+      className="group absolute w-[72vw] sm:w-[50vw] md:w-[44vw] max-w-[580px] aspect-[16/9] transition-all duration-500 ease-out cursor-pointer transform-gpu select-none"
       style={{
         ...cardStyle,
-        WebkitBoxReflect: "below 8px linear-gradient(transparent 65%, rgba(0, 0, 0, 0.45))",
+        // Reflection mirrors the whole card (incl. video) — expensive. Center only.
+        WebkitBoxReflect: isCenter
+          ? "below 8px linear-gradient(transparent 65%, rgba(0, 0, 0, 0.45))"
+          : "none",
+        willChange: absOffset <= 1 ? "transform" : "auto",
       }}
     >
       <div
@@ -366,69 +420,84 @@ const WorkCard = memo(function WorkCard({
             className="relative w-full h-full bg-[#0a0514] overflow-hidden"
             style={{ clipPath: "url(#curvedScreenClip)" }}
           >
-            <LazyVideo
-              ref={videoRef}
-              src={item.video}
-              poster={item.poster}
-              className="w-full h-full object-cover scale-105 pointer-events-none"
-            />
+            {shouldRenderVideo ? (
+              <LazyVideo
+                ref={videoRef}
+                src={item.video}
+                poster={item.poster}
+                className="w-full h-full object-cover scale-105 pointer-events-none"
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={item.poster}
+                alt=""
+                loading="lazy"
+                className="w-full h-full object-cover scale-105 pointer-events-none"
+              />
+            )}
 
             {/* Gradient Dimmer */}
             <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/60 pointer-events-none" />
 
-            {/* Play Button Indicator */}
-            <div
-              className={`absolute inset-0 flex items-center justify-center transition-all duration-300 pointer-events-none ${
-                isPlaying && isCenter
-                  ? "opacity-0 group-hover:opacity-100 bg-black/25"
-                  : "opacity-0 group-hover:opacity-100 bg-black/35 backdrop-blur-[2px]"
-              }`}
-            >
-              <div className="p-3.5 sm:p-4 bg-purple-600/90 hover:bg-purple-500 rounded-full text-white backdrop-blur-md shadow-xl border border-purple-300/40 transform transition-transform duration-300 group-hover:scale-110 active:scale-95">
-                {isPlaying && isCenter ? (
-                  <Pause className="w-5 h-5 sm:w-6 sm:h-6 fill-current" />
-                ) : (
-                  <Play className="w-5 h-5 sm:w-6 sm:h-6 fill-current ml-0.5" />
-                )}
+            {/* Play/Pause control.
+                - Center + paused: overlay visible, button clickable (invites play).
+                - Center + playing: overlay hidden, appears on hover to allow pause.
+                - Side cards: only a hover hint; clicking the card focuses it. */}
+            {shouldRenderVideo && (
+              <div
+                className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${
+                  isCenter && isPlaying
+                    ? "opacity-0 group-hover:opacity-100 bg-black/25"
+                    : isCenter
+                    ? "opacity-100 bg-black/25"
+                    : "opacity-0 group-hover:opacity-100 bg-black/35 backdrop-blur-[2px]"
+                }`}
+              >
+                <button
+                  type="button"
+                  aria-label={isCenter && isPlaying ? "Pause video" : "Play video"}
+                  onClick={handleButtonClick}
+                  className={`p-3.5 sm:p-4 bg-purple-600/90 hover:bg-purple-500 rounded-full text-white backdrop-blur-md shadow-xl border border-purple-300/40 transform transition-transform duration-300 group-hover:scale-110 active:scale-95 ${
+                    isCenter ? "pointer-events-auto cursor-pointer" : "pointer-events-none"
+                  }`}
+                >
+                  {isCenter && isPlaying ? (
+                    <Pause className="w-5 h-5 sm:w-6 sm:h-6 fill-current" />
+                  ) : (
+                    <Play className="w-5 h-5 sm:w-6 sm:h-6 fill-current ml-0.5" />
+                  )}
+                </button>
               </div>
-            </div>
+            )}
           </div>
 
-          {/* SVG Border Effect */}
+          {/* SVG Border Effect — gradient on center, cheap flat stroke elsewhere. */}
           <svg
             className="absolute inset-0 w-full h-full pointer-events-none z-20"
             viewBox="0 0 1000 562.5"
             preserveAspectRatio="none"
           >
-            <defs>
-              <linearGradient
-                id={`borderGrad-${item.uniqueKey}`}
-                x1="0%"
-                y1="0%"
-                x2="100%"
-                y2="100%"
-              >
-                <stop
-                  offset="0%"
-                  stopColor="#d8b4fe"
-                  stopOpacity={isCenter ? "0.9" : "0.4"}
-                />
-                <stop
-                  offset="50%"
-                  stopColor="#a855f7"
-                  stopOpacity={isCenter ? "0.6" : "0.3"}
-                />
-                <stop
-                  offset="100%"
-                  stopColor="#c026d3"
-                  stopOpacity={isCenter ? "0.9" : "0.4"}
-                />
-              </linearGradient>
-            </defs>
+            {isCenter && (
+              <defs>
+                <linearGradient
+                  id={`borderGrad-${item.uniqueKey}`}
+                  x1="0%"
+                  y1="0%"
+                  x2="100%"
+                  y2="100%"
+                >
+                  <stop offset="0%" stopColor="#d8b4fe" stopOpacity="0.9" />
+                  <stop offset="50%" stopColor="#a855f7" stopOpacity="0.6" />
+                  <stop offset="100%" stopColor="#c026d3" stopOpacity="0.9" />
+                </linearGradient>
+              </defs>
+            )}
             <path
               d="M 20 34 Q 500 78 980 34 C 990 34 1000 45 1000 62 L 1000 500 C 1000 517 990 528 980 528 Q 500 484 20 528 C 10 528 0 517 0 500 L 0 62 C 0 45 10 34 20 34 Z"
               fill="none"
-              stroke={`url(#borderGrad-${item.uniqueKey})`}
+              stroke={isCenter ? `url(#borderGrad-${item.uniqueKey})` : "#a855f7"}
+              strokeOpacity={isCenter ? 1 : 0.35}
               strokeWidth={isCenter ? "4" : "2.5"}
             />
           </svg>
