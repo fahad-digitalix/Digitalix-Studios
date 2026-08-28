@@ -27,19 +27,27 @@ import jsPDF from 'jspdf';
 
 const cinzel = Cinzel({ subsets: ['latin'], weight: ['700', '900'] });
 
+// 🎯 EXACT SYNCED DATA FROM ALL PRICING PLANS
 const PLAN_DETAILS_MAP: Record<string, { title: string; price: string; service: string }> = {
+  // --- Real Estate Media Packages ---
   '10-vid': { title: '10 Videos Package', price: '$300', service: 'Real Estate Media' },
   '20-vid': { title: '20 Videos Package', price: '$500', service: 'Real Estate Media' },
   '30-vid': { title: '30 Videos Package', price: '$700', service: 'Real Estate Media' },
+
+  // --- SaaS Launch Videos ---
   '30-sec': { title: '30 Seconds Launch Video', price: '$450', service: 'SaaS Launch Videos' },
   '1-min': { title: '1 Minute Launch Video', price: '$800', service: 'SaaS Launch Videos' },
   '2-min': { title: '2 Minutes Explainer Suite', price: '$1300', service: 'SaaS Launch Videos' },
-  'short-starter': { title: '5 Shorts / Reels Pack', price: '$250', service: 'Custom Video Editing' },
-  'short-growth': { title: '10 Shorts / Reels Pack', price: '$450', service: 'Custom Video Editing' },
-  'short-pro': { title: '20 Shorts / Reels Pack', price: '$850', service: 'Custom Video Editing' },
-  'long-single': { title: '1 Long-Form YouTube Edit', price: '$350', service: 'Custom Video Editing' },
-  'long-bundle': { title: '4 Long-Form YouTube Edits', price: '$1100', service: 'Custom Video Editing' },
-  'long-agency': { title: '8 Long-Form YouTube Suite', price: '$2200', service: 'Custom Video Editing' },
+
+  // --- Short-Form Packages ---
+  'short-starter': { title: '10 Short-Form Videos Pack', price: '$199', service: 'Short-Form Video Editing' },
+  'short-growth': { title: '20 Short-Form Videos Pack', price: '$249', service: 'Short-Form Video Editing' },
+  'short-pro': { title: '30 Short-Form Videos Pack', price: '$299', service: 'Short-Form Video Editing' },
+
+  // --- Long-Form Packages ---
+  'long-single': { title: '10 Long-Form Videos Package', price: '$400', service: 'Long-Form Video Editing' },
+  'long-bundle': { title: '20 Long-Form Videos Package', price: '$700', service: 'Long-Form Video Editing' },
+  'long-agency': { title: '30 Long-Form Videos Package', price: '$1000', service: 'Long-Form Video Editing' },
 };
 
 function CheckoutComponent() {
@@ -249,7 +257,7 @@ function CheckoutComponent() {
     >
       <div className="fixed top-1/4 left-1/2 -translate-x-1/2 w-[600px] md:w-[1000px] 2xl:w-[1400px] h-[400px] 2xl:h-[600px] bg-purple-600/10 blur-[180px] rounded-full pointer-events-none z-0" />
 
-      {/* HEADER SECTION WITH NAVBAR SPACING */}
+      {/* HEADER SECTION */}
       <section className="relative z-10 w-full flex flex-col items-center justify-center pt-36 sm:pt-40 md:pt-48 pb-12 sm:pb-16 px-4 max-w-5xl mx-auto">
         <div ref={headerRef} className={`z-10 text-center max-w-4xl mx-auto px-4 ${cinzel.className}`}>
           

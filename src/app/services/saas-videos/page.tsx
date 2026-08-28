@@ -144,7 +144,7 @@ export default function SaasLaunchVideoPage() {
 
   return (
     <div ref={pageRef} className="w-full bg-[#06030a] text-white min-h-screen selection:bg-purple-600 selection:text-white overflow-hidden">
-      
+
       {/* Ambient Background Glow */}
       <div className="fixed top-1/4 left-1/2 -translate-x-1/2 w-[600px] md:w-[1000px] 2xl:w-[1400px] h-[400px] 2xl:h-[600px] bg-purple-600/10 blur-[180px] rounded-full pointer-events-none z-0" />
 
@@ -297,7 +297,7 @@ function WorkGridSection() {
   };
 
   return (
-    <section 
+    <section
       ref={sectionRef}
       className="relative w-full bg-[#06030a] text-white flex flex-col items-center justify-center py-16 sm:py-20 md:py-28 2xl:py-36 border-t border-purple-950/40 overflow-hidden"
     >
@@ -361,7 +361,7 @@ function WorkGridCard({
       if (playPromise !== undefined) {
         playPromise.catch(() => {
           video.muted = true;
-          video.play().catch(() => {});
+          video.play().catch(() => { });
         });
       }
     } else {
@@ -447,23 +447,20 @@ function PricingCard({ plan }: { plan: PricingPlan }) {
       style={{
         transform: `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`,
       }}
-      className={`pricing-card-inner group relative p-[1.5px] transition-transform duration-300 ease-out cursor-pointer h-full w-[290px] sm:w-[320px] lg:w-full lg:max-w-[340px] 2xl:max-w-[420px] shrink-0 lg:hover:scale-105 lg:hover:z-50 ${
-        plan.isPopular ? "z-20" : "z-10"
-      }`}
+      className={`pricing-card-inner group relative p-[1.5px] transition-transform duration-300 ease-out cursor-pointer h-full w-[290px] sm:w-[320px] lg:w-full lg:max-w-[340px] 2xl:max-w-[420px] shrink-0 lg:hover:scale-105 lg:hover:z-50 ${plan.isPopular ? "z-20" : "z-10"
+        }`}
     >
       <div
-        className={`absolute inset-0 transition-all duration-500 ${
-          plan.isPopular
+        className={`absolute inset-0 transition-all duration-500 ${plan.isPopular
             ? "bg-gradient-to-br from-purple-500 via-fuchsia-500 to-purple-800 shadow-[0_0_35px_rgba(168,85,247,0.4)]"
             : "bg-gradient-to-br from-white/20 via-purple-500/20 to-white/5 group-hover:from-purple-500 group-hover:to-fuchsia-500"
-        }`}
+          }`}
         style={{ clipPath: currentClipPath }}
       />
 
       <div
-        className={`relative flex flex-col justify-between p-6 sm:p-7 2xl:p-10 h-full w-full backdrop-blur-xl ${
-          plan.isPopular ? "bg-[#120723]/95" : "bg-[#0a0512]/95"
-        }`}
+        className={`relative flex flex-col justify-between p-6 sm:p-7 2xl:p-10 h-full w-full backdrop-blur-xl ${plan.isPopular ? "bg-[#120723]/95" : "bg-[#0a0512]/95"
+          }`}
         style={{ clipPath: currentClipPath }}
       >
         <div
@@ -477,11 +474,10 @@ function PricingCard({ plan }: { plan: PricingPlan }) {
 
         <div className="flex items-center justify-between mb-3 2xl:mb-5 z-10">
           <span
-            className={`text-[10px] 2xl:text-xs font-bold tracking-[0.25em] uppercase px-3 2xl:px-4 py-1 2xl:py-1.5 border ${
-              plan.isPopular
+            className={`text-[10px] 2xl:text-xs font-bold tracking-[0.25em] uppercase px-3 2xl:px-4 py-1 2xl:py-1.5 border ${plan.isPopular
                 ? "bg-purple-600/30 border-purple-400 text-purple-200"
                 : "bg-white/5 border-white/10 text-gray-400"
-            }`}
+              }`}
             style={{
               clipPath: "polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px))",
             }}
@@ -521,16 +517,14 @@ function PricingCard({ plan }: { plan: PricingPlan }) {
                 className="flex items-center gap-2 2xl:gap-3 text-xs 2xl:text-sm font-light lg:group-hover:translate-x-1 transition-transform duration-300"
               >
                 <div
-                  className={`w-4 h-4 2xl:w-5 2xl:h-5 rounded-full border flex items-center justify-center shrink-0 transition-colors ${
-                    feature.included
+                  className={`w-4 h-4 2xl:w-5 2xl:h-5 rounded-full border flex items-center justify-center shrink-0 transition-colors ${feature.included
                       ? "bg-purple-950/80 border-purple-500/50 group-hover:bg-purple-600 group-hover:border-purple-400"
                       : "bg-white/5 border-white/10 opacity-40"
-                  }`}
+                    }`}
                 >
                   <Check
-                    className={`w-2.5 h-2.5 2xl:w-3.5 2xl:h-3.5 stroke-[3] ${
-                      feature.included ? "text-purple-300 group-hover:text-white" : "text-gray-500"
-                    }`}
+                    className={`w-2.5 h-2.5 2xl:w-3.5 2xl:h-3.5 stroke-[3] ${feature.included ? "text-purple-300 group-hover:text-white" : "text-gray-500"
+                      }`}
                   />
                 </div>
                 <span className={feature.included ? "text-gray-300" : "text-gray-500"}>
@@ -541,22 +535,21 @@ function PricingCard({ plan }: { plan: PricingPlan }) {
           </ul>
         </div>
 
-<div className="flex flex-col gap-2 mt-auto z-10">
-  <Link
-    href={`/checkout?service=saas&plan=${plan.id}`}
-    className={`w-full py-3 2xl:py-4 px-4 text-[11px] 2xl:text-sm font-bold uppercase tracking-wider transition-all duration-300 active:scale-95 flex items-center justify-center gap-2 ${
-      plan.isPopular
-        ? "bg-gradient-to-r from-purple-600 via-fuchsia-600 to-purple-600 text-white shadow-lg shadow-purple-600/30 hover:shadow-purple-500/50"
-        : "bg-white text-purple-950 hover:bg-gray-100"
-    }`}
-    style={{
-      clipPath: "polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)",
-    }}
-  >
-    <Zap className="w-3.5 h-3.5 2xl:w-4 2xl:h-4 fill-current" />
-    <span>Order Video</span>
-  </Link>
-</div>
+        <div className="flex flex-col gap-2 mt-auto z-10">
+          <Link
+            href={`/checkout?service=saas&plan=${plan.id}`}
+            className={`w-full py-3 2xl:py-4 px-4 text-[11px] 2xl:text-sm font-bold uppercase tracking-wider transition-all duration-300 active:scale-95 flex items-center justify-center gap-2 ${plan.isPopular
+                ? "bg-gradient-to-r from-purple-600 via-fuchsia-600 to-purple-600 text-white shadow-lg shadow-purple-600/30 hover:shadow-purple-500/50"
+                : "bg-white text-purple-950 hover:bg-gray-100"
+              }`}
+            style={{
+              clipPath: "polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)",
+            }}
+          >
+            <Zap className="w-3.5 h-3.5 2xl:w-4 2xl:h-4 fill-current" />
+            <span>Order Now</span>
+          </Link>
+        </div>
 
         <div className="absolute bottom-0 left-10 w-12 2xl:w-20 h-[2px] bg-purple-500/50 group-hover:bg-purple-400 group-hover:shadow-[0_0_8px_#a855f7] transition-all" />
       </div>
@@ -568,7 +561,7 @@ function PricingPackagesSection() {
   const cardsWrapperRef = useRef<HTMLDivElement>(null);
 
   return (
-    <section className="relative w-full bg-[#06030a] text-white border-t border-purple-950/40 overflow-hidden flex flex-col justify-start pt-16 pb-20 md:pt-24 md:pb-32 2xl:pt-36 2xl:pb-44">
+    <section id="pricing" className="relative w-full bg-[#06030a] text-white border-t border-purple-950/40 overflow-hidden flex flex-col justify-start pt-16 pb-20 md:pt-24 md:pb-32 2xl:pt-36 2xl:pb-44">
       <div className={`z-10 text-center max-w-5xl 2xl:max-w-7xl mx-auto flex flex-col items-center shrink-0 px-4 mb-10 lg:mb-16 2xl:mb-20 ${cinzel.className}`}>
         <p className="text-xs sm:text-sm 2xl:text-lg uppercase tracking-[0.25em] md:tracking-[0.4em] text-purple-300/60 mb-3">
           Flexible Options
@@ -592,7 +585,7 @@ function PricingPackagesSection() {
 
         {/* Action Buttons: Book A Call + Get A Custom Quote */}
         <div className="max-w-4xl 2xl:max-w-6xl mx-auto mt-12 sm:mt-16 2xl:mt-24 px-4 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 2xl:gap-8">
-          
+
           {/* Book A Call */}
           <div className="shrink-0 relative group/btn w-full sm:w-auto">
             <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-purple-600 via-fuchsia-500 to-purple-600 opacity-40 blur-md group-hover/btn:opacity-80 transition-opacity duration-300" />
