@@ -2,53 +2,19 @@
 
 import React, { useState, Suspense, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import { Cinzel } from 'next/font/google';
 import {
   ShieldCheck,
   CheckCircle2,
   Lock,
-  ArrowRight,
   Loader2,
-  Download,
   CreditCard,
-  Building2,
   User,
-  Mail,
-  Phone,
-  FileVideo,
-  Sparkles,
-  Zap,
-  ArrowUpRight,
-  Receipt
 } from 'lucide-react';
 import gsap from 'gsap';
-import jsPDF from 'jspdf';
+import { getPackageById } from '@/lib/packages';
 
 const cinzel = Cinzel({ subsets: ['latin'], weight: ['700', '900'] });
-
-// 🎯 EXACT SYNCED DATA FROM ALL PRICING PLANS
-const PLAN_DETAILS_MAP: Record<string, { title: string; price: string; service: string }> = {
-  // --- Real Estate Media Packages ---
-  '10-vid': { title: '10 Videos Package', price: '$300', service: 'Real Estate Media' },
-  '20-vid': { title: '20 Videos Package', price: '$500', service: 'Real Estate Media' },
-  '30-vid': { title: '30 Videos Package', price: '$700', service: 'Real Estate Media' },
-
-  // --- SaaS Launch Videos ---
-  '30-sec': { title: '30 Seconds Launch Video', price: '$450', service: 'SaaS Launch Videos' },
-  '1-min': { title: '1 Minute Launch Video', price: '$800', service: 'SaaS Launch Videos' },
-  '2-min': { title: '2 Minutes Explainer Suite', price: '$1300', service: 'SaaS Launch Videos' },
-
-  // --- Short-Form Packages ---
-  'short-starter': { title: '10 Short-Form Videos Pack', price: '$199', service: 'Short-Form Video Editing' },
-  'short-growth': { title: '20 Short-Form Videos Pack', price: '$249', service: 'Short-Form Video Editing' },
-  'short-pro': { title: '30 Short-Form Videos Pack', price: '$299', service: 'Short-Form Video Editing' },
-
-  // --- Long-Form Packages ---
-  'long-single': { title: '10 Long-Form Videos Package', price: '$400', service: 'Long-Form Video Editing' },
-  'long-bundle': { title: '20 Long-Form Videos Package', price: '$700', service: 'Long-Form Video Editing' },
-  'long-agency': { title: '30 Long-Form Videos Package', price: '$1000', service: 'Long-Form Video Editing' },
-};
 
 function CheckoutComponent() {
   const searchParams = useSearchParams();
@@ -56,19 +22,14 @@ function CheckoutComponent() {
   const headerRef = useRef<HTMLDivElement>(null);
 
   const rawPlan = searchParams.get('plan') || '';
-  const rawPrice = searchParams.get('price') || '';
   const planId = searchParams.get('id') || '';
-  const serviceParam = searchParams.get('service') || '';
 
+  // Prices are resolved from the trusted package catalog only, for display.
+  // The server independently re-resolves the price when creating a payment —
+  // nothing shown here is ever trusted for the actual charge.
   const packageData = useMemo(() => {
-    if (planId && PLAN_DETAILS_MAP[planId]) return PLAN_DETAILS_MAP[planId];
-    if (rawPlan && PLAN_DETAILS_MAP[rawPlan]) return PLAN_DETAILS_MAP[rawPlan];
-    return {
-      title: rawPlan || 'Custom Production Package',
-      price: rawPrice || '$500',
-      service: serviceParam ? `${serviceParam.toUpperCase()} Media` : 'Post-Production Suite',
-    };
-  }, [rawPlan, rawPrice, planId, serviceParam]);
+    return getPackageById(planId) || getPackageById(rawPlan);
+  }, [rawPlan, planId]);
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -76,14 +37,11 @@ function CheckoutComponent() {
     phone: '',
     company: '',
     projectNotes: '',
-    cardNumber: '',
-    cardExpiry: '',
-    cardCvc: '',
   });
 
   const [loading, setLoading] = useState(false);
-  const [orderSuccess, setOrderSuccess] = useState(false);
-  const [invoiceId, setInvoiceId] = useState('');
+  const [error, setError] = useState('');
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -98,152 +56,66 @@ function CheckoutComponent() {
     return () => ctx.revert();
   }, []);
 
-  const generateReceiptPDF = (invNum: string) => {
-    const doc = new jsPDF();
-
-    doc.setFillColor(6, 3, 10);
-    doc.rect(0, 0, 210, 45, 'F');
-
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(20);
-    doc.text('OFFICIAL INVOICE & RECEIPT', 20, 24);
-
-    doc.setFontSize(9);
-    doc.setTextColor(192, 132, 252);
-    doc.text(`INVOICE: ${invNum}`, 20, 34);
-    doc.text(`DATE: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}`, 145, 34);
-
-    doc.setTextColor(20, 20, 20);
-    doc.setFontSize(13);
-    doc.text('Client Information', 20, 60);
-
-    doc.setFontSize(10);
-    doc.setTextColor(70, 70, 70);
-    doc.text(`Client Name: ${formData.fullName}`, 20, 70);
-    doc.text(`Email Address: ${formData.email}`, 20, 78);
-    doc.text(`Contact: ${formData.phone}`, 20, 86);
-    doc.text(`Brand / Studio: ${formData.company || 'Direct Client'}`, 20, 94);
-
-    doc.setFillColor(243, 232, 255);
-    doc.rect(20, 110, 170, 10, 'F');
-    doc.setTextColor(88, 28, 135);
-    doc.setFontSize(10);
-    doc.text('Package Description', 25, 117);
-    doc.text('Service Track', 105, 117);
-    doc.text('Amount Paid', 155, 117);
-
-    doc.setTextColor(30, 30, 30);
-    doc.setFontSize(10);
-    doc.text(packageData.title, 25, 130);
-    doc.text(packageData.service, 105, 130);
-    doc.text(packageData.price, 155, 130);
-
-    doc.setDrawColor(220, 220, 220);
-    doc.line(20, 140, 190, 140);
-
-    doc.setFontSize(13);
-    doc.setTextColor(6, 3, 10);
-    doc.text(`Total Paid: ${packageData.price}`, 140, 155);
-
-    doc.setFontSize(9);
-    doc.setTextColor(120, 120, 120);
-    doc.text('Production pipeline has been initialized.', 20, 185);
-    doc.text('All video revisions and raw access credits are active immediately.', 20, 192);
-
-    doc.save(`Receipt-${invNum}.pdf`);
-  };
-
-  const handleCheckoutSubmit = async (e: React.FormEvent) => {
+  const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submittingRef.current || !packageData) return;
+    submittingRef.current = true;
+    setError('');
     setLoading(true);
 
-    const generatedInv = `INV-${Date.now().toString().slice(-6)}`;
-    setInvoiceId(generatedInv);
-
     try {
-      const res = await fetch('/api/checkout', {
+      const res = await fetch('/api/payment/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...formData,
-          packageTitle: packageData.title,
-          packagePrice: packageData.price,
-          service: packageData.service,
-          invoiceId: generatedInv,
-          date: new Date().toISOString(),
+          packageId: packageData.id,
+          fullName: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
         }),
       });
 
-      if (res.ok) {
-        setOrderSuccess(true);
-      } else {
-        setOrderSuccess(true);
+      const data = await res.json();
+
+      if (!res.ok || !data?.checkoutUrl) {
+        setError(data?.error || 'Unable to start payment. Please try again.');
+        setLoading(false);
+        submittingRef.current = false;
+        return;
       }
+
+      // Leaving the page for ZionPe's hosted checkout — no need to reset
+      // loading/submittingRef, the redirect takes over.
+      window.location.href = data.checkoutUrl;
     } catch (err) {
-      console.error('Checkout error:', err);
-      setOrderSuccess(true);
-    } finally {
+      console.error('Payment initiation error:', err);
+      setError('Network error. Please check your connection and try again.');
       setLoading(false);
+      submittingRef.current = false;
     }
   };
 
   const cardClipPath =
     'polygon(0 0, calc(100% - 28px) 0, 100% 28px, 100% 100%, 28px 100%, 0 calc(100% - 28px))';
 
-  if (orderSuccess) {
+  if (!packageData) {
     return (
       <div className="min-h-screen bg-[#06030a] text-white flex items-center justify-center p-4 selection:bg-purple-600">
-        <div className="relative group max-w-lg w-full p-[1.5px] transition-all duration-500">
+        <div className="relative max-w-lg w-full p-[1.5px]">
           <div
-            className="absolute inset-0 bg-gradient-to-br from-purple-500 via-fuchsia-500 to-purple-800 shadow-[0_0_40px_rgba(168,85,247,0.3)]"
+            className="absolute inset-0 bg-gradient-to-br from-purple-500 via-fuchsia-500 to-purple-800 shadow-[0_0_35px_rgba(168,85,247,0.3)]"
             style={{ clipPath: cardClipPath }}
           />
           <div
             className="relative p-8 sm:p-10 bg-[#0d061c]/95 backdrop-blur-2xl text-center"
             style={{ clipPath: cardClipPath }}
           >
-            <div className="w-14 h-14 bg-purple-950/80 border border-purple-400/60 rounded-2xl flex items-center justify-center mx-auto mb-6 text-purple-200 shadow-[0_0_20px_rgba(168,85,247,0.35)]">
-              <CheckCircle2 className="w-7 h-7 text-purple-300 stroke-[2.5]" />
-            </div>
-
-            <h2 className={`text-2xl sm:text-3xl font-black uppercase tracking-wider mb-2 ${cinzel.className}`}>
-              ORDER CONFIRMED
+            <h2 className={`text-xl sm:text-2xl font-black uppercase tracking-wider mb-2 ${cinzel.className}`}>
+              Package Not Found
             </h2>
-            <p className="font-sans text-xs sm:text-sm text-slate-300 mb-6 leading-relaxed">
-              Your production slot is secured. The creative team has received your order specs.
+            <p className="font-sans text-xs sm:text-sm text-slate-300">
+              We couldn&apos;t find the package you selected. Please go back and choose a package again.
             </p>
-
-            <div className="bg-[#140827]/90 border border-purple-500/30 rounded-2xl p-4 text-left mb-6 space-y-2.5 font-sans">
-              <div className="flex justify-between text-xs text-slate-400">
-                <span>Invoice ID:</span>
-                <span className="text-purple-300 font-mono font-bold tracking-wider">{invoiceId}</span>
-              </div>
-              <div className="flex justify-between text-xs text-slate-400">
-                <span>Package:</span>
-                <span className="text-white font-medium">{packageData.title}</span>
-              </div>
-              <div className="flex justify-between text-xs text-slate-400">
-                <span>Amount Paid:</span>
-                <span className="text-purple-300 font-bold font-mono">{packageData.price}</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-3 font-sans">
-              <button
-                onClick={() => generateReceiptPDF(invoiceId)}
-                className="w-full py-4 px-6 rounded-full bg-gradient-to-r from-purple-600 via-fuchsia-600 to-purple-600 text-white font-bold uppercase tracking-wider text-xs sm:text-sm flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 transition shadow-lg shadow-purple-600/30"
-              >
-                <Download className="w-4 h-4" />
-                <span>Download Invoice PDF</span>
-              </button>
-
-              <Link
-                href="/"
-                className="w-full py-3.5 rounded-full border border-purple-400/30 text-xs font-bold uppercase tracking-wider text-slate-300 hover:text-white hover:bg-purple-950/40 transition text-center"
-              >
-                Return To Home
-              </Link>
-            </div>
           </div>
         </div>
       </div>
@@ -296,7 +168,7 @@ function CheckoutComponent() {
               >
                 <div className="absolute top-0 right-10 w-16 h-[2px] bg-purple-500/50" />
 
-                <form onSubmit={handleCheckoutSubmit} className="space-y-6 font-sans">
+                <form onSubmit={handlePayment} className="space-y-6 font-sans">
                   
                   {/* Step 1: Customer Details */}
                   <div>
@@ -381,64 +253,28 @@ function CheckoutComponent() {
                     </div>
                   </div>
 
-                  {/* Step 2: Payment Gateway Card */}
+                  {/* Step 2: Secure Card Payment */}
                   <div className="pt-6 border-t border-purple-500/20">
                     <div className="flex items-center gap-2.5 mb-5">
                       <div className="w-7 h-7 rounded-lg bg-purple-950/80 border border-purple-500/40 flex items-center justify-center text-purple-300">
                         <CreditCard className="w-3.5 h-3.5" />
                       </div>
                       <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-purple-200">
-                        2. Payment Information
+                        2. Secure Card Payment
                       </h3>
                     </div>
 
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-[11px] font-semibold tracking-wider uppercase text-slate-300 mb-1.5">
-                          Card Number *
-                        </label>
-                        <input
-                          required
-                          type="text"
-                          placeholder="5399 2810 9940 1823"
-                          maxLength={19}
-                          value={formData.cardNumber}
-                          onChange={(e) => setFormData({ ...formData, cardNumber: e.target.value })}
-                          className="w-full bg-[#130924] border border-purple-500/30 rounded-xl px-4 py-3 text-white placeholder-slate-500 text-xs sm:text-sm font-mono focus:outline-none focus:border-purple-400 transition"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-[11px] font-semibold tracking-wider uppercase text-slate-300 mb-1.5">
-                            Expiry (MM/YY) *
-                          </label>
-                          <input
-                            required
-                            type="text"
-                            placeholder="08/28"
-                            maxLength={5}
-                            value={formData.cardExpiry}
-                            onChange={(e) => setFormData({ ...formData, cardExpiry: e.target.value })}
-                            className="w-full bg-[#130924] border border-purple-500/30 rounded-xl px-4 py-3 text-white placeholder-slate-500 text-xs sm:text-sm font-mono focus:outline-none focus:border-purple-400 transition"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-semibold tracking-wider uppercase text-slate-300 mb-1.5">
-                            CVC / CVV *
-                          </label>
-                          <input
-                            required
-                            type="password"
-                            placeholder="892"
-                            maxLength={4}
-                            value={formData.cardCvc}
-                            onChange={(e) => setFormData({ ...formData, cardCvc: e.target.value })}
-                            className="w-full bg-[#130924] border border-purple-500/30 rounded-xl px-4 py-3 text-white placeholder-slate-500 text-xs sm:text-sm font-mono focus:outline-none focus:border-purple-400 transition"
-                          />
-                        </div>
-                      </div>
+                    <div className="flex items-start gap-3 bg-[#130924] border border-purple-500/30 rounded-xl px-4 py-4">
+                      <Lock className="w-4 h-4 text-purple-300 mt-0.5 shrink-0" />
+                      <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                        You&apos;ll be redirected to our secure payment partner to enter your card details.
+                        DigitalXT never sees or stores your card number, expiry, or CVC.
+                      </p>
                     </div>
+
+                    {error && (
+                      <p className="mt-3 text-xs sm:text-sm text-red-400 font-medium">{error}</p>
+                    )}
                   </div>
 
                   {/* Submit Button */}
@@ -446,14 +282,17 @@ function CheckoutComponent() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full py-4 px-6 rounded-full bg-gradient-to-r from-purple-600 via-fuchsia-600 to-purple-600 text-white font-bold uppercase tracking-wider text-xs sm:text-sm flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-95 transition shadow-xl shadow-purple-600/30"
+                      className="w-full py-4 px-6 rounded-full bg-gradient-to-r from-purple-600 via-fuchsia-600 to-purple-600 text-white font-bold uppercase tracking-wider text-xs sm:text-sm flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-95 transition shadow-xl shadow-purple-600/30 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {loading ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          <span>Preparing secure payment...</span>
+                        </>
                       ) : (
                         <>
                           <Lock className="w-4 h-4" />
-                          <span>Authorize {packageData.price} & Start Project</span>
+                          <span>Pay {packageData.priceDisplay} Securely</span>
                         </>
                       )}
                     </button>
@@ -496,7 +335,7 @@ function CheckoutComponent() {
                 <div className="font-sans py-4 border-y border-purple-500/30 space-y-3">
                   <div className="flex justify-between text-xs sm:text-sm">
                     <span className="text-slate-400">Selected Allocation</span>
-                    <span className="font-mono text-white font-medium">{packageData.price}</span>
+                    <span className="font-mono text-white font-medium">{packageData.priceDisplay}</span>
                   </div>
                   <div className="flex justify-between text-xs sm:text-sm">
                     <span className="text-slate-400">Processing & Onboarding</span>
@@ -505,7 +344,7 @@ function CheckoutComponent() {
                   <div className="flex justify-between items-baseline pt-3 border-t border-purple-500/20">
                     <span className="text-sm font-bold uppercase tracking-wider text-white">Total Amount</span>
                     <span className={`text-2xl sm:text-3xl font-black text-white ${cinzel.className}`}>
-                      {packageData.price}
+                      {packageData.priceDisplay}
                     </span>
                   </div>
                 </div>
