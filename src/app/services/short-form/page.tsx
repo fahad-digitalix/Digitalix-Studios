@@ -76,7 +76,7 @@ const shortFormPlans: PricingPlan[] = [
     id: "short-starter",
     badge: "STARTER",
     originalPrice: "$400",
-    price: "$199",
+    price: "$0.2",
     videosCount: "10 Videos",
     perVideoPrice: "$20/Video",
     description: "Ideal for creators testing high-retention short content.",
