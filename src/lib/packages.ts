@@ -26,7 +26,9 @@ const PACKAGES: Record<string, PackageDefinition> = {
   "1-min": { id: "1-min", title: "1 Minute Launch Video", service: "SaaS Launch Videos", amount: 80000, currency: "USD", priceDisplay: "$800" },
   "2-min": { id: "2-min", title: "2 Minutes Explainer Suite", service: "SaaS Launch Videos", amount: 130000, currency: "USD", priceDisplay: "$1300" },
 
-  "short-starter": { id: "short-starter", title: "10 Short-Form Videos Pack", service: "Short-Form Video Editing", amount: 19900, currency: "USD", priceDisplay: "$199" },
+  // TEMPORARY: priced at $0.20 for a live end-to-end payment test with a real
+  // card. Revert amount to 19900 and priceDisplay to "$199" immediately after.
+  "short-starter": { id: "short-starter", title: "10 Short-Form Videos Pack", service: "Short-Form Video Editing", amount: 20, currency: "USD", priceDisplay: "$0.20" },
   "short-growth": { id: "short-growth", title: "20 Short-Form Videos Pack", service: "Short-Form Video Editing", amount: 24900, currency: "USD", priceDisplay: "$249" },
   "short-pro": { id: "short-pro", title: "30 Short-Form Videos Pack", service: "Short-Form Video Editing", amount: 29900, currency: "USD", priceDisplay: "$299" },
 

@@ -27,7 +27,7 @@ const pricingPlans: PricingPlan[] = [
     id: "short-form",
     badge: "CLASSIC",
     title: "Short-Form Videos",
-    price: "$50",
+    price: "$0.2",
     description: "Video editing for short form videos up to 120 seconds runtime.",
     features: [
       "24/7 customer support",
