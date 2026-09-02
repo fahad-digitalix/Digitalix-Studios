@@ -149,7 +149,7 @@ export default function SaasLaunchVideoPage() {
       <div className="fixed top-1/4 left-1/2 -translate-x-1/2 w-[600px] md:w-[1000px] 2xl:w-[1400px] h-[400px] 2xl:h-[600px] bg-purple-600/10 blur-[180px] rounded-full pointer-events-none z-0" />
 
       {/* ================= HERO SECTION ================= */}
-      <section className="relative z-10 w-full flex flex-col items-center justify-center pt-32 pb-16 md:pt-44 md:pb-24 2xl:pt-56 2xl:pb-32 px-4 sm:px-6 max-w-7xl 2xl:max-w-[1700px] mx-auto">
+      <section className="relative z-10 w-full flex flex-col items-center justify-center pt-32 pb-16 md:pt-44 md:pb-24 2xl:pt-56 2xl:pb-28 px-4 sm:px-6 max-w-7xl 2xl:max-w-[1700px] mx-auto">
         <div
           ref={headerRef}
           className={`z-10 text-center max-w-5xl 2xl:max-w-7xl mx-auto px-4 ${cinzel.className}`}
@@ -197,33 +197,34 @@ export default function SaasLaunchVideoPage() {
             </div>
           </div>
         </div>
+      </section>
 
-        {/* HERO FEATURES BAR */}
-        <div className="w-full max-w-7xl 2xl:max-w-[1700px] mx-auto mt-16 md:mt-24 2xl:mt-32 px-2 sm:px-4 fade-up z-10">
-          <div className="w-full py-6 2xl:py-10 px-5 sm:px-8 2xl:px-12 rounded-2xl md:rounded-full bg-[#0e0720]/90 border border-purple-400/40 backdrop-blur-xl shadow-[0_0_35px_rgba(168,85,247,0.2)]">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-6 gap-y-6 2xl:gap-x-10 items-center justify-center">
-              {heroFeatures.map((item, index) => {
-                const Icon = item.icon;
-                return (
-                  <div key={index} className="flex items-center gap-3 2xl:gap-4 justify-start sm:justify-center">
-                    <div className="w-9 h-9 sm:w-10 sm:h-10 2xl:w-14 2xl:h-14 rounded-xl 2xl:rounded-2xl bg-purple-950/90 border border-purple-400/60 flex items-center justify-center text-purple-200 shrink-0 shadow-[0_0_12px_rgba(168,85,247,0.3)]">
-                      <Icon className="w-4 h-4 sm:w-5 sm:h-5 2xl:w-7 2xl:h-7 stroke-[2.2]" />
-                    </div>
-                    <div className="text-left font-sans whitespace-nowrap">
-                      <strong className="block text-white font-extrabold text-xs sm:text-sm lg:text-[15px] 2xl:text-lg leading-tight tracking-wide">
-                        {item.title}
-                      </strong>
-                      <span className="text-[11px] sm:text-xs 2xl:text-sm text-purple-200/90 font-medium">
-                        {item.desc}
-                      </span>
-                    </div>
+      {/* ================= COMPACT FULL-WIDTH FEATURES STRIP ================= */}
+      <div className="relative z-20 w-full bg-[#0a0514]/90 backdrop-blur-md border-y border-purple-500/20 shadow-[0_4px_25px_rgba(0,0,0,0.4)]">
+        <div className="max-w-[1700px] mx-auto px-4 sm:px-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 divide-y sm:divide-y-0 lg:divide-x divide-purple-500/15">
+            {heroFeatures.map((item, index) => {
+              const Icon = item.icon;
+              return (
+                <div
+                  key={index}
+                  className="flex flex-col items-center justify-center py-4 sm:py-5 lg:py-6 px-3 text-center group transition-colors duration-200 hover:bg-purple-950/20"
+                >
+                  <div className="mb-2 text-purple-300 transition-transform duration-300 group-hover:scale-110 group-hover:text-purple-200">
+                    <Icon className="w-5 h-5 sm:w-6 sm:h-6 stroke-[1.75]" />
                   </div>
-                );
-              })}
-            </div>
+                  <strong className="block text-white font-semibold text-xs sm:text-[13px] 2xl:text-sm tracking-wide">
+                    {item.title}
+                  </strong>
+                  <span className="text-[10px] sm:text-[11px] 2xl:text-xs text-purple-200/60 font-normal mt-0.5">
+                    {item.desc}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
-      </section>
+      </div>
 
       {/* ================= OUR WORK GRID SECTION ================= */}
       <WorkGridSection />
