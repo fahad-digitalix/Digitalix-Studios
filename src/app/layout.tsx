@@ -25,8 +25,10 @@ export const metadata: Metadata = {
     default: "Digitalix Studios | Premium Video Production For Modern Brands",
     template: "%s | Digitalix Studios",
   },
+
   description:
     "Premium Video Production For Modern Brands. Digitalix Studios specializes in high-converting custom editing, short-form content, commercial production, and YouTube content creation.",
+
   keywords: [
     "Digitalix Studios",
     "Premium Video Production",
@@ -36,10 +38,10 @@ export const metadata: Metadata = {
     "Cinematic Video Editing",
     "Modern Brand Video Production",
   ],
+
   authors: [{ name: "Digitalix Studios" }],
   creator: "Digitalix Studios",
 
-  // Favicon & Logo Integration
   icons: {
     icon: [
       { url: "/logo.png", type: "image/png" },
@@ -50,34 +52,42 @@ export const metadata: Metadata = {
     apple: "/logo.png",
   },
 
-  // Open Graph (For Facebook, LinkedIn, WhatsApp link previews)
   openGraph: {
     title: "Digitalix Studios | Premium Video Production For Modern Brands",
+
     description:
       "Premium Video Production For Modern Brands. Transforming raw footage into cinematic, high-converting video stories.",
+
     url: "https://digitalixstudios.com",
+
     siteName: "Digitalix Studios",
+
     images: [
       {
-        url: "/logo.png",
+        url: "/linklogo.png",
         width: 1200,
         height: 630,
-        alt: "Digitalix Studios Logo",
+        alt: "Digitalix Studios",
       },
     ],
+
     locale: "en_US",
     type: "website",
   },
 
-  // Twitter Cards
   twitter: {
     card: "summary_large_image",
+
     title: "Digitalix Studios | Premium Video Production For Modern Brands",
+
     description:
-      "Premium Video Production For Modern Brands. Transforming raw footage into high-converting visual stories.",
-    images: ["/logo.png"],
+      "Premium Video Production For Modern Brands. Transforming raw footage into cinematic, high-converting video stories.",
+
+    images: ["/linklogo.png"],
   },
 };
+
+
 
 export default function RootLayout({
   children,
