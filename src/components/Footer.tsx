@@ -145,7 +145,7 @@ export default function Footer() {
                 </a>
 
                 <a
-                  href="https://www.instagram.com/digitalix_studios01"
+                  href="https://www.instagram.com/digitalix_studios_/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-10 h-10 2xl:w-12 2xl:h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-purple-300 hover:border-purple-500/50 hover:bg-purple-950/40 hover:scale-105 transition-all duration-300"
