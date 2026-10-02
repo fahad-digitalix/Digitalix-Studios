@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import { getPackageById } from '@/lib/packages';
 import { PENDING_ORDER_COOKIE } from '@/lib/payment';
+import { signZionPeRequest, ZIONPE_SIGNATURE_HEADER, ZIONPE_TIMESTAMP_HEADER } from '@/lib/zionpeSigning';
 
 const ZIONPE_API_BASE = 'https://zionpe.com/api';
 
@@ -39,49 +40,70 @@ export async function POST(req: NextRequest) {
   }
 
   const siteKey = process.env.ZIONPE_SITE_KEY;
-  if (!siteKey) {
-    console.error('[payment/create] ZIONPE_SITE_KEY is not configured.');
+  const siteSecret = process.env.ZIONPE_SITE_SECRET;
+  if (!siteKey || !siteSecret) {
+    console.error(
+      '[payment/create] Missing ZionPe credentials —',
+      'ZIONPE_SITE_KEY configured:', !!siteKey,
+      'ZIONPE_SITE_SECRET configured:', !!siteSecret
+    );
     return NextResponse.json(
       { error: 'Online payments are temporarily unavailable. Please try again later.' },
       { status: 503 }
     );
   }
 
+  // orderId doubles as the Idempotency-Key below — it's already the unique,
+  // stable identifier for this checkout attempt, so retries of the same
+  // request (e.g. a client-side double-submit) can't create duplicate
+  // ZionPe sessions/orders.
   const orderId = `ORD-${Date.now().toString(36).toUpperCase()}-${randomUUID().slice(0, 6).toUpperCase()}`;
   const origin = new URL(req.url).origin;
+
+  const sessionRequestBody = {
+    site_key: siteKey,
+    line_items: [
+      {
+        name: pkg.title,
+        description: pkg.service,
+        // ZionPe's live API expects whole currency units here (e.g. 300
+        // for $300), not the smallest unit as its written docs describe —
+        // confirmed by testing: sending pkg.amount (cents) directly for
+        // the $1300 package produced "Payment amount US$130,000.00" in
+        // ZionPe's own error response. pkg.amount stays in cents
+        // internally (used as-is for the verify-payment orderTotal
+        // string below), so it's only converted here.
+        amount: pkg.amount / 100,
+        quantity: 1,
+      },
+    ],
+    currency: pkg.currency,
+    customer_email: trimmedEmail,
+    success_url: `${origin}/payment/success`,
+    cancel_url: `${origin}/payment/cancel`,
+    metadata: {
+      order_id: orderId,
+      package_id: pkg.id,
+      customer_email: trimmedEmail,
+    },
+  };
+
+  // Sign the exact string that will be sent — `body` below is that same
+  // string, never re-serialized, so the signature always matches what
+  // ZionPe receives.
+  const { timestamp, signature, body: signedBody } = signZionPeRequest(sessionRequestBody);
 
   let zionpeRes: Response;
   try {
     zionpeRes = await fetch(`${ZIONPE_API_BASE}/checkout/sessions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        site_key: siteKey,
-        line_items: [
-          {
-            name: pkg.title,
-            description: pkg.service,
-            // ZionPe's live API expects whole currency units here (e.g. 300
-            // for $300), not the smallest unit as its written docs describe —
-            // confirmed by testing: sending pkg.amount (cents) directly for
-            // the $1300 package produced "Payment amount US$130,000.00" in
-            // ZionPe's own error response. pkg.amount stays in cents
-            // internally (used as-is for the verify-payment orderTotal
-            // string below), so it's only converted here.
-            amount: pkg.amount / 100,
-            quantity: 1,
-          },
-        ],
-        currency: pkg.currency,
-        customer_email: trimmedEmail,
-        success_url: `${origin}/payment/success`,
-        cancel_url: `${origin}/payment/cancel`,
-        metadata: {
-          order_id: orderId,
-          package_id: pkg.id,
-          customer_email: trimmedEmail,
-        },
-      }),
+      headers: {
+        'Content-Type': 'application/json',
+        [ZIONPE_TIMESTAMP_HEADER]: timestamp,
+        [ZIONPE_SIGNATURE_HEADER]: signature,
+        'Idempotency-Key': orderId,
+      },
+      body: signedBody,
     });
   } catch (err) {
     console.error('[payment/create] Network error contacting ZionPe:', err);

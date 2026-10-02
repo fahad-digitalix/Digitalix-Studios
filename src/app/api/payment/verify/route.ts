@@ -1,17 +1,9 @@
+﻿import { createHmac } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { getPackageById, type PackageDefinition } from '@/lib/packages';
+import { getPackageById } from '@/lib/packages';
 import { PENDING_ORDER_COOKIE } from '@/lib/payment';
 
 const ZIONPE_API_BASE = 'https://zionpe.com/api';
-
-const KNOWN_ZIONPE_STATUSES = [
-  'succeeded',
-  'processing',
-  'requires_payment_method',
-  'requires_action',
-  'requires_confirmation',
-  'canceled',
-] as const;
 
 interface PendingOrder {
   orderId: string;
@@ -20,13 +12,18 @@ interface PendingOrder {
   email: string;
 }
 
-interface VerifyPaymentResponse {
-  success?: boolean;
+interface ZionPeSession {
+  id?: string;
   status?: string;
   amount?: number;
   currency?: string;
-  cardBrand?: string;
-  cardLast4?: string;
+  payment_intent_id?: string;
+  metadata?: Record<string, unknown>;
+}
+
+interface ZionPeSessionResponse {
+  success?: boolean;
+  session?: ZionPeSession;
 }
 
 export async function POST(req: NextRequest) {
@@ -38,7 +35,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { sessionId, paymentIntentId } = body as { sessionId?: string; paymentIntentId?: string };
-  if (!sessionId || !paymentIntentId) {
+  if (typeof sessionId !== 'string' || !sessionId || typeof paymentIntentId !== 'string' || !paymentIntentId) {
     return NextResponse.json({ error: 'Missing payment identifier.' }, { status: 400 });
   }
 
@@ -52,7 +49,7 @@ export async function POST(req: NextRequest) {
 
   let pending: PendingOrder;
   try {
-    pending = JSON.parse(pendingCookie);
+    pending = JSON.parse(pendingCookie) as PendingOrder;
   } catch {
     return NextResponse.json(
       { error: 'We could not find your order. If you were charged, please contact support.' },
@@ -67,8 +64,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Never trust pending.amount (there isn't one) or anything from ZionPe's
-  // echoed amount alone — always re-resolve the authoritative price here.
   const pkg = getPackageById(pending.packageId);
   if (!pkg) {
     console.error('[payment/verify] Pending order references unknown package:', pending.packageId);
@@ -76,100 +71,79 @@ export async function POST(req: NextRequest) {
   }
 
   const siteKey = process.env.ZIONPE_SITE_KEY;
-  if (!siteKey) {
-    console.error('[payment/verify] ZIONPE_SITE_KEY is not configured.');
+  const siteSecret = process.env.ZIONPE_SITE_SECRET;
+  if (!siteKey || !siteSecret) {
+    console.error('[payment/verify] ZionPe credentials are not configured.');
     return NextResponse.json(
       { error: 'Payment verification is temporarily unavailable. Please contact support.' },
       { status: 503 }
     );
   }
 
+  // ZionPe's supported confirmation API is a signed read. The empty GET body
+  // is signed as `${timestamp}.`; the Site Key travels in its documented header.
+  const timestamp = Math.floor(Date.now() / 1000).toString();
+  const signature = createHmac('sha256', siteSecret).update(`${timestamp}.`).digest('hex');
+
   let zionpeRes: Response;
   try {
-    zionpeRes = await fetch(`${ZIONPE_API_BASE}/wp/checkout/verify-payment`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        siteKey,
-        paymentIntentId,
-        orderId: pending.orderId,
-        orderTotal: (pkg.amount / 100).toFixed(2),
-        currency: pkg.currency,
-      }),
-    });
+    zionpeRes = await fetch(
+      `${ZIONPE_API_BASE}/checkout/sessions/${encodeURIComponent(sessionId)}`,
+      {
+        method: 'GET',
+        headers: {
+          'X-ZionPe-Site-Key': siteKey,
+          'X-ZionPe-Timestamp': timestamp,
+          'X-ZionPe-Signature': signature,
+        },
+        cache: 'no-store',
+      }
+    );
   } catch (err) {
     console.error('[payment/verify] Network error contacting ZionPe:', err);
     return NextResponse.json({ error: 'Unable to verify payment right now. Please try again.' }, { status: 502 });
   }
 
-  let data: VerifyPaymentResponse | null = null;
+  let data: ZionPeSessionResponse | null = null;
   try {
-    data = await zionpeRes.json();
+    data = await zionpeRes.json() as ZionPeSessionResponse;
   } catch {
     data = null;
   }
 
-  const payload = buildVerifyPayload(zionpeRes.ok, data, pkg, pending);
-
-  const response = NextResponse.json(payload);
-  // Single-use: once verification has been attempted, drop the pending
-  // order so a stale cookie can't be reused for a different session.
-  response.cookies.delete(PENDING_ORDER_COOKIE);
-  return response;
-}
-
-function buildVerifyPayload(
-  ok: boolean,
-  data: VerifyPaymentResponse | null,
-  pkg: PackageDefinition,
-  pending: PendingOrder
-) {
-  if (!ok || !data) {
-    console.error('[payment/verify] ZionPe verification call failed:', data);
-    return { outcome: 'error' as const, orderId: pending.orderId };
+  if (!zionpeRes.ok || !data?.success || !data.session) {
+    console.error('[payment/verify] ZionPe session read failed. status:', zionpeRes.status);
+    return NextResponse.json({ outcome: 'error', orderId: pending.orderId });
   }
 
-  // Defensive cross-check: the amount ZionPe confirms must match the
-  // authoritative price we calculated, or something is wrong — never
-  // report success based on client- or provider-supplied amounts alone.
-  // ZionPe's live API reports amounts in whole currency units (e.g. 300 for
-  // $300), matching what create/route.ts now sends — see the comment there.
-  // pkg.amount is kept in cents internally, so it's converted for this
-  // comparison only.
-  const expectedAmount = pkg.amount / 100;
-  if (typeof data.amount === 'number' && data.amount !== expectedAmount) {
-    console.error(
-      '[payment/verify] Amount mismatch for order',
-      pending.orderId,
-      'expected',
-      expectedAmount,
-      'got',
-      data.amount
-    );
-    return { outcome: 'error' as const, orderId: pending.orderId };
+  const session = data.session;
+  if (
+    session.id !== sessionId ||
+    session.payment_intent_id !== paymentIntentId ||
+    session.metadata?.order_id !== pending.orderId ||
+    session.metadata?.package_id !== pkg.id ||
+    typeof session.amount !== 'number' ||
+    Math.round(session.amount * 100) !== pkg.amount ||
+    typeof session.currency !== 'string' ||
+    session.currency.toUpperCase() !== pkg.currency
+  ) {
+    console.error('[payment/verify] ZionPe session did not match the pending order:', pending.orderId);
+    return NextResponse.json({ outcome: 'error', orderId: pending.orderId });
   }
 
-  const zionpeStatus = KNOWN_ZIONPE_STATUSES.includes(data.status as (typeof KNOWN_ZIONPE_STATUSES)[number])
-    ? data.status
-    : 'unknown';
+  const outcome = session.status === 'completed'
+    ? 'paid'
+    : session.status === 'processing' || session.status === 'pending'
+      ? 'processing'
+      : session.status === 'cancelled' || session.status === 'expired'
+        ? 'cancelled'
+        : 'failed';
 
-  const paid = data.success === true && zionpeStatus === 'succeeded';
-
-  const outcome = paid
-    ? ('paid' as const)
-    : zionpeStatus === 'canceled'
-    ? ('cancelled' as const)
-    : zionpeStatus === 'processing'
-    ? ('processing' as const)
-    : ('failed' as const);
-
-  return {
+  return NextResponse.json({
     outcome,
     orderId: pending.orderId,
     package: { id: pkg.id, title: pkg.title, service: pkg.service },
     amount: pkg.amount,
     currency: pkg.currency,
-    cardBrand: typeof data.cardBrand === 'string' ? data.cardBrand : undefined,
-    cardLast4: typeof data.cardLast4 === 'string' ? data.cardLast4 : undefined,
-  };
+  });
 }
